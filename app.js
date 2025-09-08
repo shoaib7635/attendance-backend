@@ -5,6 +5,12 @@
   const User = require("./models/user");
   const Student = require("./models/Student");
   const Attendance = require("./models/Attendance");
+  const multer = require("multer");
+  const upload = multer({ dest: "uploads/" });
+
+const csv = require("csv-parser");
+const fs = require("fs");
+
   const app = express();
   const PORT = 4000;
 
@@ -12,12 +18,13 @@
   app.use(express.json());
 
   // MongoDB connection
-  mongoose.connect("mongodb://127.0.0.1:27017/attendanceDB")
+  mongoose.connect("mongodb+srv://Shoaib:Malik7635@cluster0.jpwreoi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     .then(() => {
-      console.log("✅ MongoDB connected");
+      console.log("✅ MongoDB Atlas connected");
       makeExistingUserAdmin(); // Make existing user admin
     })
-    .catch(err => console.log("❌ MongoDB connection error:", err));
+    .catch(err => console.log("❌ Error connecting MongoDB Atlas:", err));
+
 
   // 🔥 EXISTING USER KO ADMIN BANANE KE LIYE 🔥
   const makeExistingUserAdmin = async () => {
@@ -30,7 +37,7 @@
         { role: "admin" },
         { new: true }
       );
-
+     console.log(user)
       if (user) {
         console.log(`🚀 EXISTING USER UPDATED TO ADMIN:`);
         console.log(`📧 Email: ${user.email}`);
@@ -554,6 +561,37 @@
       res.status(500).json({ message: err.message });
     }
   });
+
+  // CSV import route
+
+app.post("/import-csv", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "CSV file required" });
+
+    const results = [];
+
+    fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on("data", (data) => {
+        // Map CSV columns to MongoDB fields
+        results.push({
+          name: data.name,
+          course: data.course,
+          userId: data.userId, // Excel ya CSV me userId column hona chahiye
+          CNIC: data.CNIC || null,
+          attendance: []
+        });
+      })
+      .on("end", async () => {
+        await Student.insertMany(results);
+        fs.unlinkSync(req.file.path); // Delete temporary file
+        res.json({ message: "CSV imported successfully", total: results.length });
+      });
+
+  } catch (err) {
+    res.status(500).json({ message: "Error importing CSV", error: err.message });
+  }
+});
 
 
   // Test route
