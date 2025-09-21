@@ -2,7 +2,7 @@
   "name": "attendance-backend",
   "version": "1.0.0",
   "main": "app.js",
- "scripts": {
+  "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js"
   },
@@ -12,9 +12,13 @@
   "description": "",
   "dependencies": {
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
     "dotenv": "^17.2.1",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
+    "json2csv": "^6.0.0-alpha.2",
     "mongoose": "^8.17.2",
+    "multer": "^2.0.2",
     "node-cron": "^4.2.1"
   },
   "devDependencies": {
