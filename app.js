@@ -310,29 +310,51 @@ const fs = require("fs");
     }
   });
 
+    // Roll number generate function
+const generateRollNumber = async () => {
+  const year = new Date().getFullYear(); // current year (2025, 2026, ...)
+  const prefix = `${year}-FIT-`;
+
+  // is saal ke students count karo
+  const count = await Student.countDocuments({ rollNumber: { $regex: `^${prefix}` } });
+
+  // agla number banao
+  return `${prefix}${count + 1}`;
+};
+
   // Add student
-  app.post("/addstudent", async (req, res) => {
-    try {
-      const { name, course, userId, CNIC } = req.body;
+ // Add student
+app.post("/addstudent", async (req, res) => {
+  try {
+    const { name, course, userId, CNIC } = req.body;
 
-      if (!name || !course || !userId) {
-        return res.status(400).json({ message: "All fields are required" });
-      }
-
-      const newStudent = new Student({
-        name,
-        course,
-        userId,
-        CNIC: CNIC || null,
-        attendance: [] 
-      });
-
-      await newStudent.save();
-      res.status(201).json({ message: "Student added successfully", student: newStudent });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+    if (!name || !course || !userId) {
+      return res.status(400).json({ message: "All fields are required" });
     }
-  });
+
+    // Generate roll number
+    const rollNumber = await generateRollNumber();
+    console.log(rollNumber)
+
+    const newStudent = new Student({
+      name,
+      course,
+      userId,
+      CNIC: CNIC || null,
+      rollNumber,   // 🎯 Add roll number
+      attendance: [] 
+    });
+
+    await newStudent.save();
+    res.status(201).json({ message: "Student added successfully", student: newStudent });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
+
+
 
   // GET all students
   app.get("/students", async (req, res) => {
@@ -358,12 +380,16 @@ const fs = require("fs");
         attendance.status = status;
         attendance.name = student.name;
         attendance.course = student.course;
+        attendance.CNIC = student.CNIC;
+        attendance.rollNumber = student.rollNumber;
         await attendance.save();
       } else {
         await new Attendance({
           student: student._id,
           name: student.name,
           course: student.course,
+          CNIC: student.CNIC,
+          rollNumber: student.rollNumber,
           status,
           date
         }).save();
@@ -380,7 +406,7 @@ const fs = require("fs");
     const { date } = req.query;
 
     try {
-      const attendanceRecords = await Attendance.find({ date }).populate("student", "name course CNIC");
+      const attendanceRecords = await Attendance.find({ date }).populate("student", "name course CNIC rollNumber");
       
       const present = [];
       const absent = [];
@@ -394,12 +420,14 @@ const fs = require("fs");
       _id: record.student._id,
       name: record.student.name,
       course: record.student.course,
-      CNIC: record.student.CNIC  // <-- Add this
+      CNIC: record.student.CNIC,
+      rollNumber: record.student.rollNumber
     } : {
       _id: record.student,
       name: record.name || "Deleted Student",
       course: record.course || "Unknown Course",
       CNIC: record.CNIC || "Unknown",
+      rollNumber: "Unknown",
       isDeleted: true
     }
   };
@@ -430,6 +458,8 @@ const fs = require("fs");
             student: student._id,
             name: student.name,
             course: student.course,
+            CNIC: student.CNIC,
+            rollNumber: student.rollNumber,
             status: "Absent",
             date
           }).save();
@@ -507,7 +537,7 @@ const fs = require("fs");
 
       // Find all attendance records for matched students
       const records = await Attendance.find({ student: { $in: students.map(s => s._id) } })
-          .populate("student", "name course CNIC")
+          .populate("student", "name course CNIC rollNumber")
           .sort({ date: 1 });
 
       const mappedRecords = records.map(r => ({
@@ -516,11 +546,13 @@ const fs = require("fs");
           _id: r.student._id,
           name: r.student.name,
           course: r.student.course,
-          CNIC: r.student.CNIC
+          CNIC: r.student.CNIC,
+          rollNumber: r.student.rollNumber
         } : {
           name: r.name,
           course: r.course,
           CNIC: r.CNIC || "Unknown",
+          rollNumber: "Unknown",
           isDeleted: true
         }
       }));
@@ -572,13 +604,16 @@ app.post("/import-csv", upload.single("file"), async (req, res) => {
 
     fs.createReadStream(req.file.path)
       .pipe(csv())
-      .on("data", (data) => {
+      .on("data", async (data) => {
+
+        const rollNumber = await generateRollNumber(); 
         // Map CSV columns to MongoDB fields
         results.push({
           name: data.name,
           course: data.course,
           userId: data.userId, // Excel ya CSV me userId column hona chahiye
           CNIC: data.CNIC || null,
+          rollNumber, 
           attendance: []
         });
       })

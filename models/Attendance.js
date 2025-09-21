@@ -5,6 +5,7 @@ const attendanceSchema = new mongoose.Schema({
   status: { type: String, enum: ["Present", "Absent"], required: true },
   date: { type: String, required: true }, // YYYY-MM-DD
   name: { type: String },
+  rollNumber: { type: String },
   course: { type: String },
 });
 
