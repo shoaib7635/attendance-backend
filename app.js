@@ -30,7 +30,7 @@ const fs = require("fs");
   const makeExistingUserAdmin = async () => {
     try {
       // YAHAN APNI EXISTING USER KI EMAIL DALEEN
-      const existingUserEmail = "malikqwertyuiop2@gmail.com"; // ⬅️ APNI EMAIL YAHAN
+      const existingUserEmail = "hrfutureit@gmail.com"; // ⬅️ APNI EMAIL YAHAN
       
       const user = await User.findOneAndUpdate(
         { email: existingUserEmail },
