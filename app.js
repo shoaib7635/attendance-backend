@@ -312,15 +312,22 @@ const fs = require("fs");
 
     // Roll number generate function
 const generateRollNumber = async () => {
-  const year = new Date().getFullYear(); // current year (2025, 2026, ...)
+  const year = new Date().getFullYear();
   const prefix = `${year}-FIT-`;
 
-  // is saal ke students count karo
-  const count = await Student.countDocuments({ rollNumber: { $regex: `^${prefix}` } });
+  let count = await Student.countDocuments({ rollNumber: { $regex: `^${prefix}` } });
+  let rollNumber;
+  let exists;
 
-  // agla number banao
-  return `${prefix}${count + 1}`;
+  do {
+    rollNumber = `${prefix}${count + 1}`;
+    exists = await Student.findOne({ rollNumber });
+    count++;
+  } while (exists);
+
+  return rollNumber;
 };
+
 
   // Add student
  // Add student
@@ -331,10 +338,14 @@ app.post("/addstudent", async (req, res) => {
     if (!name || !course || !userId) {
       return res.status(400).json({ message: "All fields are required" });
     }
+    const existing = await Student.findOne({ CNIC, userId });
+    if (existing) {
+      return res.status(400).json({ message: "Student with this CNIC already exists." });
+    }
+
 
     // Generate roll number
     const rollNumber = await generateRollNumber();
-    console.log(rollNumber)
 
     const newStudent = new Student({
       name,
@@ -344,17 +355,12 @@ app.post("/addstudent", async (req, res) => {
       rollNumber,   // 🎯 Add roll number
       attendance: [] 
     });
-
     await newStudent.save();
     res.status(201).json({ message: "Student added successfully", student: newStudent });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
-
-
-
-
 
   // GET all students
   app.get("/students", async (req, res) => {
